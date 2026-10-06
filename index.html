@@ -119,7 +119,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.65);
       align-items: flex-end;
       z-index: 100;
     }
@@ -134,15 +134,15 @@
       flex-direction: column;
     }
 
-    /* Dikey Kırpma Alanı (iPhone Ekranı için Yüksek Yapı) */
+    /* Dikey Kırpma Alanı & Kalın Parmak Tutamaçları */
     .crop-wrapper {
       position: relative;
       width: 100%;
-      height: 52vh; /* Dikey test soruları için genişletilmiş alan */
-      background: #1c1c1e;
+      height: 48vh;
+      background: #111;
       border-radius: 12px;
       overflow: hidden;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .crop-wrapper img {
       max-width: 100%;
@@ -150,13 +150,49 @@
       display: block;
     }
 
-    /* Canlı Filtre CSS Sınıfları */
+    /* Parmakla Rahat Tutulabilen Geniş Tutamaçlar */
+    .cropper-point {
+      width: 22px !important;
+      height: 22px !important;
+      background-color: var(--primary) !important;
+      border: 3px solid white !important;
+      border-radius: 50% !important;
+      opacity: 0.9 !important;
+    }
+    .cropper-line {
+      background-color: var(--primary) !important;
+      opacity: 0.6 !important;
+    }
+    .cropper-view-box {
+      outline: 2px solid var(--primary) !important;
+      outline-color: var(--primary) !important;
+    }
+
+    /* Hızlı Ayar Barı (Tam Sayfa, Üst, Alt vb.) */
+    .quick-crop-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .btn-quick {
+      flex: 1;
+      padding: 6px 4px;
+      background: #e5e5ea;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1c1c1e;
+      cursor: pointer;
+    }
+
+    /* Canlı Filtre Sınıfları */
     .filter-original { filter: none !important; }
     .filter-magic { filter: contrast(150%) brightness(115%) saturate(120%) !important; }
     .filter-bw { filter: grayscale(100%) contrast(250%) brightness(110%) !important; }
     .filter-contrast { filter: contrast(180%) brightness(95%) !important; }
-    .filter-gray { filter: grayscale(100%) contrast(110%) !important; }
     .filter-bright { filter: brightness(130%) contrast(120%) !important; }
+    .filter-gray { filter: grayscale(100%) contrast(110%) !important; }
 
     .filter-scroll {
       display: flex;
@@ -182,7 +218,6 @@
       border-color: var(--primary);
     }
 
-    /* Form Girişleri */
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
     .form-group input {
@@ -193,7 +228,7 @@
       font-size: 15px;
     }
 
-    /* Tam Ekran İnceleme Ekranı */
+    /* Tam Ekran İnceleme */
     .fullscreen-viewer {
       display: none;
       position: fixed;
@@ -262,7 +297,7 @@
 
   <div id="list-container"></div>
 
-  <!-- Ana Kamera Butonu -->
+  <!-- Ana Buton -->
   <div class="bottom-bar">
     <label class="btn-camera">
       📷 Soru Fotoğrafı Çek / Seç
@@ -270,21 +305,32 @@
     </label>
   </div>
 
-  <!-- Gizli Çözüm Fotoğrafı Yükleme Girdisi -->
+  <!-- Çözüm Fotoğrafı Yükleme -->
   <input type="file" accept="image/*" capture="environment" id="solution-input" style="display:none;" onchange="handleSolutionUploaded(event)">
 
-  <!-- 1. Aşama: Dikey Kırpma ve Canlı CamScanner Filtresi Ekranı -->
+  <!-- 1. Aşama: Gelişmiş Dikey Kırpma & Filtre Ekranı -->
   <div class="modal" id="crop-modal">
     <div class="sheet">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h3 style="margin:0; font-size:17px;">Dikey Kırp & Canlı Filtrele</h3>
+        <h3 style="margin:0; font-size:16px;">Kırp ve Netleştir</h3>
         <button onclick="rotateCropper()" style="border:none; background:#e3e3e8; padding:6px 12px; border-radius:6px; font-weight:600;">🔄 Çevir</button>
       </div>
 
+      <!-- Kırpma Önizleme Alanı -->
       <div class="crop-wrapper" id="crop-wrapper-box">
         <img id="cropper-target-img">
       </div>
 
+      <!-- Kalın Parmak İçin Hızlı Seçim Butonları -->
+      <div class="quick-crop-bar">
+        <button class="btn-quick" onclick="setQuickCrop('full')">📐 Tüm Sayfa</button>
+        <button class="btn-quick" onclick="setQuickCrop('top')">⬆️ Üst Soru</button>
+        <button class="btn-quick" onclick="setQuickCrop('bottom')">⬇️ Alt Soru</button>
+        <button class="btn-quick" onclick="adjustCropSize(1.1)">🔍 Genişlet</button>
+        <button class="btn-quick" onclick="adjustCropSize(0.9)">🎯 Daralt</button>
+      </div>
+
+      <!-- Canlı CamScanner Filtreleri -->
       <div class="filter-scroll">
         <button class="filter-chip active" onclick="applyLiveFilter('magic', this)">📄 Magic Color</button>
         <button class="filter-chip" onclick="applyLiveFilter('bw', this)">🖤 Siyah-Beyaz</button>
@@ -295,7 +341,7 @@
       </div>
 
       <div style="display:flex; gap:8px;">
-        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="closeCropModal()">İptal</button>
+        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="cancelEntireProcess()">Vazgeç</button>
         <button style="flex:1; padding:12px; border:none; background:var(--primary); color:white; border-radius:9px; font-weight:bold;" onclick="applyCropAndProceed()">Devam Et</button>
       </div>
     </div>
@@ -304,7 +350,7 @@
   <!-- 2. Aşama: Bilgi Kayıt Formu -->
   <div class="modal" id="save-modal">
     <div class="sheet">
-      <h3 style="margin-top:0;">Öğrenciyi Belirle</h3>
+      <h3 style="margin-top:0;">Öğrenci Bilgisi Ekle</h3>
       <img id="final-preview-img" style="width:100%; max-height:180px; object-fit:contain; border-radius:8px; margin-bottom:12px; background:#f2f2f7;">
       
       <div class="form-group">
@@ -321,14 +367,15 @@
         </label>
       </div>
       
+      <!-- GERİ TUŞU: Fotoğrafı silmez, kırpma ekranına geri götürür -->
       <div style="display:flex; gap:8px; margin-top:16px;">
-        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="closeSaveModal()">Geri</button>
+        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="backToCropScreen()">← Geri (Filtreye Dön)</button>
         <button style="flex:1; padding:12px; border:none; background:var(--primary); color:white; border-radius:9px; font-weight:bold;" onclick="saveRecord()">Kaydet</button>
       </div>
     </div>
   </div>
 
-  <!-- 3. Aşama: Tam Ekran İnceleme, Çözüm Fotoğrafı & WhatsApp Menüsü -->
+  <!-- 3. Aşama: Tam Ekran İnceleme & WhatsApp -->
   <div class="fullscreen-viewer" id="viewer-modal">
     <div class="viewer-header">
       <div>
@@ -342,7 +389,6 @@
       <img id="viewer-img" src="" alt="Soru Görseli">
     </div>
 
-    <!-- Varsa Çözüm Fotoğrafı Alanı -->
     <div id="solution-preview-area" style="display:none; padding:8px 16px; background:#111; color:white; align-items:center; justify-content:space-between;">
       <span style="font-size:13px; color:#34c759; font-weight:bold;">✓ Çözüm Fotoğrafı Eklendi</span>
       <button onclick="viewSolutionImage()" style="background:#333; color:white; border:none; padding:4px 10px; border-radius:6px; font-size:12px;">Çözümü Gör</button>
@@ -350,7 +396,6 @@
 
     <div class="viewer-footer">
       <div style="display:flex; gap:8px;">
-        <!-- Çözüm Fotoğrafı Yükleme -->
         <button class="btn-action btn-solution" style="flex:1;" onclick="triggerSolutionUpload()">
           📸 Çözüm Fotoğrafı Ekle
         </button>
@@ -359,7 +404,6 @@
         </button>
       </div>
 
-      <!-- Doğrudan WhatsApp veya Paylaşım -->
       <button class="btn-action btn-whatsapp" onclick="shareSolutionViaWhatsApp()">
         💬 WhatsApp ile Öğrenciye İlet
       </button>
@@ -371,11 +415,12 @@
     let cropper = null;
     let activeFilter = 'magic';
     let processedImageDataUrl = null;
+    let currentRawImageSrc = null;
     let currentTab = 'pending';
     let currentViewingItem = null;
     let isZoomed = false;
 
-    // IndexedDB Veritabanı
+    // IndexedDB
     const request = indexedDB.open("SoruDefteriDB", 3);
     request.onupgradeneeded = (e) => {
       db = e.target.result;
@@ -388,39 +433,70 @@
       loadQuestions();
     };
 
-    // Soru Fotoğrafı Seçimi
     function handleImageSelected(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = (e) => {
-        const image = document.getElementById('cropper-target-img');
-        image.src = e.target.result;
-        document.getElementById('crop-modal').classList.add('active');
-
-        if (cropper) cropper.destroy();
-        
-        cropper = new Cropper(image, {
-          viewMode: 1,
-          autoCropArea: 0.98,
-          responsive: true,
-          restore: false,
-          dragMode: 'crop',
-          ready: function() {
-            // İlk açılışta Magic Color filtresini uygula
-            applyLiveFilter('magic', document.querySelector('.filter-chip.active'));
-          }
-        });
+        currentRawImageSrc = e.target.result;
+        initCropper(currentRawImageSrc);
       };
       reader.readAsDataURL(file);
+    }
+
+    function initCropper(src) {
+      const image = document.getElementById('cropper-target-img');
+      image.src = src;
+      document.getElementById('crop-modal').classList.add('active');
+
+      if (cropper) cropper.destroy();
+
+      cropper = new Cropper(image, {
+        viewMode: 2,               // Görsel dışına taşmayı kesin olarak engeller
+        autoCropArea: 0.90,        // Varsayılan olarak sorunun %90'ını odaklar
+        responsive: true,
+        restore: false,
+        dragMode: 'crop',
+        movable: false,
+        rotatable: true,
+        zoomable: false,           // Yanlışlıkla görseli kaydırmayı engeller
+        touchDragZoom: false,
+        ready: function() {
+          applyLiveFilter(activeFilter, document.querySelector(`.filter-chip[onclick*="${activeFilter}"]`));
+        }
+      });
     }
 
     function rotateCropper() {
       if (cropper) cropper.rotate(90);
     }
 
-    // CANLI ÖNİZLEME: Cropper konteynerine filtre sınıfını doğrudan yansıtır
+    // Hazır Hızlı Alan Seçimleri (Kalın parmaklar için kurtarıcı)
+    function setQuickCrop(mode) {
+      if (!cropper) return;
+      const data = cropper.getImageData();
+
+      if (mode === 'full') {
+        cropper.setData({ x: 0, y: 0, width: data.naturalWidth, height: data.naturalHeight });
+      } else if (mode === 'top') {
+        cropper.setData({ x: 0, y: 0, width: data.naturalWidth, height: data.naturalHeight * 0.52 });
+      } else if (mode === 'bottom') {
+        cropper.setData({ x: 0, y: data.naturalHeight * 0.48, width: data.naturalWidth, height: data.naturalHeight * 0.52 });
+      }
+    }
+
+    function adjustCropSize(ratio) {
+      if (!cropper) return;
+      const data = cropper.getData();
+      cropper.setData({
+        x: Math.max(0, data.x - (data.width * (ratio - 1)) / 2),
+        y: Math.max(0, data.y - (data.height * (ratio - 1)) / 2),
+        width: data.width * ratio,
+        height: data.height * ratio
+      });
+    }
+
     function applyLiveFilter(filterName, btn) {
       activeFilter = filterName;
       document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
@@ -430,25 +506,24 @@
       wrapper.className = 'crop-wrapper filter-' + filterName;
     }
 
-    function closeCropModal() {
+    function cancelEntireProcess() {
       document.getElementById('crop-modal').classList.remove('active');
       if (cropper) { cropper.destroy(); cropper = null; }
       document.getElementById('camera-input').value = '';
+      currentRawImageSrc = null;
     }
 
-    // Dikey Kırpılmış Görsele Kalıcı Filtreyi İşleme
     function applyCropAndProceed() {
       if (!cropper) return;
 
-      // Orijinal netliği korumak için 2600px dikey canvas
+      // Sınırlar dışına taşmadan hassas kesim
       const croppedCanvas = cropper.getCroppedCanvas({
-        maxWidth: 2000,
-        maxHeight: 2600,
+        maxWidth: 2200,
+        maxHeight: 2800,
         imageSmoothingEnabled: true,
         imageSmoothingQuality: 'high'
       });
 
-      // Filtreleri piksel bazlı canvas üzerine işleme
       const finalCanvas = document.createElement('canvas');
       finalCanvas.width = croppedCanvas.width;
       finalCanvas.height = croppedCanvas.height;
@@ -473,13 +548,15 @@
       processedImageDataUrl = finalCanvas.toDataURL('image/jpeg', 0.90);
       document.getElementById('final-preview-img').src = processedImageDataUrl;
 
-      closeCropModal();
+      // Kırpma ekranını gizle ama cropper nesnesini yok etme (geri dönülürse kullanılsın)
+      document.getElementById('crop-modal').classList.remove('active');
       document.getElementById('save-modal').classList.add('active');
     }
 
-    function closeSaveModal() {
+    // GERİ TUŞU: Fotoğrafı koruyarak filtre/kırpma ekranını tekrar açar
+    function backToCropScreen() {
       document.getElementById('save-modal').classList.remove('active');
-      document.getElementById('camera-input').value = '';
+      document.getElementById('crop-modal').classList.add('active');
     }
 
     function saveRecord() {
@@ -500,10 +577,13 @@
       const tx = db.transaction("questions", "readwrite");
       tx.objectStore("questions").add(record);
       tx.oncomplete = () => {
-        closeSaveModal();
+        document.getElementById('save-modal').classList.remove('active');
         document.getElementById('inp-student').value = '';
         document.getElementById('inp-topic').value = '';
         document.getElementById('inp-archive').checked = false;
+        document.getElementById('camera-input').value = '';
+        if (cropper) { cropper.destroy(); cropper = null; }
+        currentRawImageSrc = null;
         loadQuestions();
       };
     }
@@ -561,7 +641,6 @@
       };
     }
 
-    // Tam Ekran Görüntüleyici
     function openViewer(item) {
       currentViewingItem = item;
       isZoomed = false;
@@ -581,7 +660,6 @@
         solveBtn.style.opacity = "1";
       }
 
-      // Çözüm görseli var mı kontrolü
       const solArea = document.getElementById('solution-preview-area');
       solArea.style.display = item.solutionImage ? 'flex' : 'none';
 
@@ -615,7 +693,6 @@
       };
     }
 
-    // Çözüm Fotoğrafı Ekleme Tetikleyicisi
     function triggerSolutionUpload() {
       document.getElementById('solution-input').click();
     }
@@ -627,21 +704,19 @@
       const reader = new FileReader();
       reader.onload = (e) => {
         const solutionBase64 = e.target.result;
-        
-        // Veritabanına çözümü kaydet
         const tx = db.transaction("questions", "readwrite");
         const store = tx.objectStore("questions");
         store.get(currentViewingItem.id).onsuccess = (ev) => {
           const data = ev.target.result;
           data.solutionImage = solutionBase64;
-          data.isSolved = true; // Çözüm eklenince otomatik çözüldü yap
+          data.isSolved = true;
           store.put(data).onsuccess = () => {
             currentViewingItem = data;
             document.getElementById('solution-preview-area').style.display = 'flex';
             document.getElementById('viewer-solve-btn').innerText = "✓ Çözüldü";
             document.getElementById('viewer-solve-btn').style.opacity = "0.5";
             loadQuestions();
-            alert("Çözüm fotoğrafı başarıyla soruya eklendi!");
+            alert("Çözüm fotoğrafı soruya eklendi!");
           };
         };
       };
@@ -652,36 +727,30 @@
       if (currentViewingItem && currentViewingItem.solutionImage) {
         const img = document.getElementById('viewer-img');
         if (img.src === currentViewingItem.solutionImage) {
-          img.src = currentViewingItem.image; // Soruya geri dön
+          img.src = currentViewingItem.image;
         } else {
-          img.src = currentViewingItem.solutionImage; // Çözümü göster
+          img.src = currentViewingItem.solutionImage;
         }
       }
     }
 
-    // WhatsApp ve iOS Paylaşım Entegrasyonu
     async function shareSolutionViaWhatsApp() {
       if (!currentViewingItem) return;
 
-      const textMsg = `Merhaba ${currentViewingItem.studentName || ''}, sorduğun (${currentViewingItem.topic}) sorusunun çözümünü ekte gönderiyorum.`;
-
-      // Hangi görsel paylaşılacak? Varsa çözüm görseli, yoksa soru görseli
+      const textMsg = `Merhaba ${currentViewingItem.studentName || ''}, sorduğun (${currentViewingItem.topic}) sorusunun çözümünü ekte iletiyorum.`;
       const targetImageBase64 = currentViewingItem.solutionImage || currentViewingItem.image;
 
       try {
-        // Base64 görseli File nesnesine dönüştür
         const res = await fetch(targetImageBase64);
         const blob = await res.blob();
         const file = new File([blob], "cozum.jpg", { type: "image/jpeg" });
 
-        // iOS Paylaşım Menüsü (WhatsApp doğrudan açılır)
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
             text: textMsg
           });
         } else {
-          // Desteklemeyen durumlarda direkt WhatsApp Web/App bağlantısı
           window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(textMsg)}`, '_blank');
         }
       } catch (err) {
