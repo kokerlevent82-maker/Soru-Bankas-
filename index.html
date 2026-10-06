@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Soru ve Sınav Defteri</title>
+  <title>Soru & Sınav Defteri</title>
 
   <style>
     :root {
@@ -15,6 +15,7 @@
       --danger: #ff3b30;
       --success: #34c759;
       --purple: #5856d6;
+      --ai: #8e44ad;
       --whatsapp: #25D366;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -32,18 +33,18 @@
       align-items: center;
       margin-bottom: 12px;
     }
-    h1 { font-size: 22px; margin: 0; font-weight: 700; }
-    .btn-backup {
+    h1 { font-size: 20px; margin: 0; font-weight: 700; }
+    .header-actions { display: flex; gap: 6px; }
+    .btn-header {
       background: #e5e5ea;
       border: none;
       padding: 6px 10px;
       border-radius: 8px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
     }
 
-    /* Ana Menü Sekmeleri */
     .tabs {
       display: flex;
       background: #e3e3e8;
@@ -67,7 +68,6 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.12);
     }
 
-    /* Kart Yapıları */
     .card {
       background: var(--card);
       border-radius: 12px;
@@ -102,7 +102,6 @@
     .badge.ok { background: #e8f5e9; color: #2e7d32; }
     .badge.exam { background: #ede9fe; color: #5b21b6; }
 
-    /* Alt Çubuk Butonları */
     .bottom-bar {
       position: fixed;
       bottom: 0;
@@ -135,7 +134,6 @@
     .btn-camera-question { background: var(--primary); }
     .btn-camera-exam { background: var(--purple); }
 
-    /* Modallar */
     .modal {
       display: none;
       position: fixed;
@@ -155,7 +153,6 @@
       flex-direction: column;
     }
 
-    /* 4 Köşeli Kırpma Alanı */
     .crop-canvas-wrapper {
       position: relative;
       width: 100%;
@@ -211,7 +208,6 @@
       border-color: var(--primary);
     }
 
-    /* Çok Sayfalı Tarama Çekmecesi */
     .pages-preview-scroll {
       display: flex;
       gap: 8px;
@@ -228,11 +224,7 @@
       border: 2px solid var(--purple);
       flex-shrink: 0;
     }
-    .page-thumb-box img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+    .page-thumb-box img { width: 100%; height: 100%; object-fit: cover; }
     .page-num-badge {
       position: absolute;
       bottom: 2px;
@@ -247,15 +239,15 @@
 
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
-    .form-group input, .form-group select {
+    .form-group input, .form-group select, .form-group textarea {
       width: 100%;
       padding: 10px;
       border: 1px solid #c6c6c8;
       border-radius: 8px;
       font-size: 15px;
+      font-family: inherit;
     }
 
-    /* Tam Ekran Görüntüleyici */
     .fullscreen-viewer {
       display: none;
       position: fixed;
@@ -308,16 +300,29 @@
       justify-content: center;
       gap: 6px;
     }
+    .ai-solution-box {
+      background: #2c2c2e;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      color: #f2f2f7;
+      max-height: 120px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      display: none;
+    }
   </style>
 </head>
 <body>
 
   <div class="header-bar">
     <h1>Soru & Sınav Defteri</h1>
-    <button class="btn-backup" onclick="exportBackupData()">💾 Arşivi Yedekle</button>
+    <div class="header-actions">
+      <button class="btn-header" onclick="openApiKeyModal()">🔑 Gemini API</button>
+      <button class="btn-header" onclick="exportBackupData()">💾 Yedekle</button>
+    </div>
   </div>
 
-  <!-- Ana Sekmeler (Sınavlar Sekmesi Eklendi) -->
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('pending', this)">Bekleyenler</button>
     <button class="tab-btn" onclick="switchTab('exams', this)">📚 Sınavlar</button>
@@ -327,7 +332,7 @@
 
   <div id="list-container"></div>
 
-  <!-- Çift Butonlu Alt Menü -->
+  <!-- Alt Butonlar -->
   <div class="bottom-bar">
     <label class="btn-action-main btn-camera-question">
       📷 Soru Çek
@@ -341,11 +346,11 @@
 
   <input type="file" accept="image/*" capture="environment" id="solution-input" style="display:none;" onchange="handleSolutionUploaded(event)">
 
-  <!-- 1. Aşama: 4 Köşeli Kırpma & Filtre Ekranı -->
+  <!-- Kırpma & Filtre Ekranı -->
   <div class="modal" id="crop-modal">
     <div class="sheet">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span id="crop-modal-title" style="font-size:14px; font-weight:700;">4 Köşeyi Ayarla</span>
+        <span id="crop-modal-title" style="font-size:14px; font-weight:700;">Köşeleri Hizala</span>
         <button onclick="autoDetectQuestion()" style="border:none; background:#e0e7ff; color:#3730a3; padding:5px 8px; border-radius:6px; font-size:11px; font-weight:700;">🔍 Otomatik Algıla</button>
       </div>
 
@@ -369,7 +374,7 @@
     </div>
   </div>
 
-  <!-- 2. Aşama (A): Soru Kaydetme Formu -->
+  <!-- Soru Kayıt Formu -->
   <div class="modal" id="save-question-modal">
     <div class="sheet">
       <h3 style="margin-top:0;">Öğrenci ve Soru Bilgisi</h3>
@@ -396,15 +401,13 @@
     </div>
   </div>
 
-  <!-- 2. Aşama (B): Çok Sayfalı Sınav Arşivi Formu -->
+  <!-- Çok Sayfalı Sınav Formu -->
   <div class="modal" id="save-exam-modal">
     <div class="sheet">
       <h3 style="margin-top:0;">📑 Sınav Arşivi (Çok Sayfalı)</h3>
-      
       <label style="font-size:12px; font-weight:700; color:#555;">Taranan Sayfalar (Toplam: <span id="exam-page-count">0</span>)</label>
       <div class="pages-preview-scroll" id="exam-pages-container"></div>
 
-      <!-- Yeni Sayfa Ekleme Butonu -->
       <label style="background:#ede9fe; color:#5b21b6; padding:10px; border-radius:8px; text-align:center; font-weight:700; font-size:13px; display:block; margin-bottom:12px; cursor:pointer;">
         ➕ Sonraki Sayfayı Tara (2, 3, 4. Sayfa)
         <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleIncomingFile(event, 'exam')">
@@ -431,7 +434,23 @@
     </div>
   </div>
 
-  <!-- 3. Aşama: Tam Ekran Soru & Çok Sayfalı Sınav Görüntüleyici -->
+  <!-- Gemini API Anahtarı Modalı -->
+  <div class="modal" id="api-modal">
+    <div class="sheet">
+      <h3 style="margin-top:0;">Gemini API Ayarı</h3>
+      <p style="font-size:13px; color:#666;">Google AI Studio'dan aldığınız ücretsiz API anahtarınızı yapıştırarak soruları yapay zekaya çözdürebilirsiniz.</p>
+      <div class="form-group">
+        <label>API Key (AI Studio)</label>
+        <input type="password" id="inp-api-key" placeholder="AIzaSy...">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="closeApiKeyModal()">Kapat</button>
+        <button style="flex:1; padding:12px; border:none; background:var(--ai); color:white; border-radius:9px; font-weight:bold;" onclick="saveApiKey()">Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tam Ekran İnceleme & Gemini Çözüm -->
   <div class="fullscreen-viewer" id="viewer-modal">
     <div class="viewer-header">
       <div>
@@ -445,7 +464,9 @@
       <img id="viewer-img" src="">
     </div>
 
-    <!-- Çok Sayfalı Sınavlar İçin Sayfa Değiştirici -->
+    <!-- Gemini Yapay Zeka Çözüm Metni Kutusu -->
+    <div id="ai-solution-box" class="ai-solution-box"></div>
+
     <div id="exam-page-switcher" style="display:none; padding:8px; background:#111; justify-content:center; gap:12px; align-items:center;">
       <button onclick="changeExamPage(-1)" style="background:#333; color:white; border:none; padding:6px 12px; border-radius:6px;">◀ Önceki</button>
       <span id="exam-page-indicator" style="font-size:13px; color:#ddd; font-weight:bold;">Sayfa 1 / 1</span>
@@ -458,11 +479,17 @@
     </div>
 
     <div class="viewer-footer">
-      <div id="question-actions" style="display:flex; gap:8px;">
-        <button class="btn-action" style="flex:1; background:var(--purple); color:white;" onclick="triggerSolutionUpload()">
-          📸 Çözüm Fotoğrafı Ekle
-        </button>
-        <button id="viewer-solve-btn" class="btn-action" style="flex:1; background:var(--success); color:white;" onclick="markCurrentSolved()">
+      <div id="question-actions" style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; gap:8px;">
+          <!-- GEMINI ÇÖZÜM BUTONU -->
+          <button id="btn-ai-solve" class="btn-action" style="flex:1; background:var(--ai); color:white;" onclick="solveWithGemini()">
+            ✨ Gemini ile Çöz
+          </button>
+          <button class="btn-action" style="flex:1; background:var(--purple); color:white;" onclick="triggerSolutionUpload()">
+            📸 Çözüm Fotoğrafı
+          </button>
+        </div>
+        <button id="viewer-solve-btn" class="btn-action" style="background:var(--success); color:white;" onclick="markCurrentSolved()">
           ✓ Çözüldü Yap
         </button>
       </div>
@@ -480,46 +507,30 @@
     let processedImageDataUrl = null;
     let activeFilter = 'magic';
     let currentTab = 'pending';
-    let currentFlowMode = 'question'; // 'question' veya 'exam'
+    let currentFlowMode = 'question';
     let currentViewingItem = null;
     let isViewingExam = false;
     let currentExamPageIndex = 0;
     let isZoomed = false;
 
-    // Çok sayfalı sınav havuzu (geçici)
     let currentExamPages = [];
-
-    // 4 Köşe Koordinatları
     let corners = [{x:0, y:0}, {x:0, y:0}, {x:0, y:0}, {x:0, y:0}];
     let activeCornerIndex = -1;
     let canvas, ctx;
 
-    // IndexedDB Başlatma ve Kalıcı Saklama Talebi
     const request = indexedDB.open("SoruSonavDefteriDB", 4);
     request.onupgradeneeded = (e) => {
       db = e.target.result;
-      if (!db.objectStoreNames.contains("questions")) {
-        db.createObjectStore("questions", { keyPath: "id", autoIncrement: true });
-      }
-      if (!db.objectStoreNames.contains("exams")) {
-        db.createObjectStore("exams", { keyPath: "id", autoIncrement: true });
-      }
+      if (!db.objectStoreNames.contains("questions")) db.createObjectStore("questions", { keyPath: "id", autoIncrement: true });
+      if (!db.objectStoreNames.contains("exams")) db.createObjectStore("exams", { keyPath: "id", autoIncrement: true });
     };
     request.onsuccess = (e) => {
       db = e.target.result;
-      requestPersistentStorage();
+      if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
       loadActiveList();
     };
 
-    // iOS Ön Bellek Temizliğini Engelleyen Kalıcı Hafıza Talebi
-    async function requestPersistentStorage() {
-      if (navigator.storage && navigator.storage.persist) {
-        const isPersisted = await navigator.storage.persist();
-        console.log("Kalıcı Depolama Durumu:", isPersisted);
-      }
-    }
-
-    // Kamera / Dosya Yükleme
+    // iOS RAM Çökmesini Engelleyen Boyutlandırma Motoru
     function handleIncomingFile(event, mode) {
       const file = event.target.files[0];
       if (!file) return;
@@ -527,14 +538,32 @@
       currentFlowMode = mode;
       const reader = new FileReader();
       reader.onload = (e) => {
-        currentRawDataUrl = e.target.result;
-        rawImage.onload = () => {
-          document.getElementById('crop-modal').classList.add('active');
-          document.getElementById('crop-modal-title').innerText = mode === 'exam' ? 'Sınav Sayfasını Hizala' : 'Soru Köşelerini Hizala';
-          initCanvas();
-          resetCornersToDefault();
+        const tempImg = new Image();
+        tempImg.onload = () => {
+          // Maksimum 1600px ile sıkıştırarak iOS Safari'nin çökmesini kesin olarak engelliyoruz
+          const maxDim = 1600;
+          let w = tempImg.width;
+          let h = tempImg.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+            else { w = Math.round((w * maxDim) / h); h = maxDim; }
+          }
+          const optCanvas = document.createElement('canvas');
+          optCanvas.width = w;
+          optCanvas.height = h;
+          const optCtx = optCanvas.getContext('2d');
+          optCtx.drawImage(tempImg, 0, 0, w, h);
+
+          currentRawDataUrl = optCanvas.toDataURL('image/jpeg', 0.85);
+          rawImage.onload = () => {
+            document.getElementById('crop-modal').classList.add('active');
+            document.getElementById('crop-modal-title').innerText = mode === 'exam' ? 'Sınav Sayfasını Hizala' : 'Soru Köşelerini Hizala';
+            initCanvas();
+            resetCornersToDefault();
+          };
+          rawImage.src = currentRawDataUrl;
         };
-        rawImage.src = currentRawDataUrl;
+        tempImg.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -637,10 +666,8 @@
       loupe.style.display = 'block';
       loupe.style.backgroundImage = `url(${currentRawDataUrl})`;
       const zoom = 2.4;
-      const bgW = rawImage.naturalWidth * (canvas.width / rawImage.naturalWidth) * zoom;
-      const bgH = rawImage.naturalHeight * (canvas.height / rawImage.naturalHeight) * zoom;
       const dp = scaleToDisplay(p);
-      loupe.style.backgroundSize = `${bgW}px ${bgH}px`;
+      loupe.style.backgroundSize = `${canvas.width * zoom}px ${canvas.height * zoom}px`;
       loupe.style.backgroundPosition = `${-dp.x * zoom + 45}px ${-dp.y * zoom + 45}px`;
     }
 
@@ -689,14 +716,13 @@
       document.getElementById('camera-exam-input').value = '';
     }
 
-    // Perspektif Düzeltme ve Filtre İşleme
     function applyPerspectiveCropAndProceed() {
       const w = Math.round(Math.max(Math.hypot(corners[1].x - corners[0].x, corners[1].y - corners[0].y), Math.hypot(corners[2].x - corners[3].x, corners[2].y - corners[3].y)));
       const h = Math.round(Math.max(Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y), Math.hypot(corners[2].x - corners[1].x, corners[2].y - corners[1].y)));
 
       const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = Math.min(w, 2200);
-      finalCanvas.height = Math.min(h, 3000);
+      finalCanvas.width = Math.min(w, 1800);
+      finalCanvas.height = Math.min(h, 2400);
       warpPerspective(rawImage, corners, finalCanvas);
       applyCanvasFilter(finalCanvas, activeFilter);
 
@@ -707,7 +733,6 @@
         document.getElementById('question-preview-img').src = processedImageDataUrl;
         document.getElementById('save-question-modal').classList.add('active');
       } else {
-        // Sınav Akışı: Sayfayı listeye ekle
         currentExamPages.push(processedImageDataUrl);
         renderExamPagesThumbnails();
         document.getElementById('save-exam-modal').classList.add('active');
@@ -756,7 +781,6 @@
       c.drawImage(temp, 0, 0);
     }
 
-    // Soru Kayıt
     function saveQuestionRecord() {
       const record = {
         image: processedImageDataUrl,
@@ -765,6 +789,7 @@
         isArchived: document.getElementById('inp-archive').checked,
         isSolved: false,
         solutionImage: null,
+        aiSolution: null,
         date: new Date().toISOString()
       };
       const tx = db.transaction("questions", "readwrite");
@@ -778,7 +803,6 @@
       };
     }
 
-    // Çok Sayfalı Sınav Küçük Resimleri
     function renderExamPagesThumbnails() {
       const cont = document.getElementById('exam-pages-container');
       cont.innerHTML = '';
@@ -797,7 +821,6 @@
       document.getElementById('camera-exam-input').value = '';
     }
 
-    // Sınav Kayıt (Çok Sayfalı)
     function saveExamRecord() {
       if (currentExamPages.length === 0) return;
       const title = document.getElementById('inp-exam-title').value.trim() || 'İsimsiz Sınav';
@@ -806,4 +829,25 @@
       const record = {
         title: title,
         type: type,
-        pages: current
+        pages: currentExamPages,
+        date: new Date().toISOString()
+      };
+
+      const tx = db.transaction("exams", "readwrite");
+      tx.objectStore("exams").add(record);
+      tx.oncomplete = () => {
+        cancelExamFlow();
+        document.getElementById('inp-exam-title').value = '';
+        switchTab('exams', document.querySelectorAll('.tab-btn')[1]);
+      };
+    }
+
+    function backToCropScreen(mode) {
+      if (mode === 'question') document.getElementById('save-question-modal').classList.remove('active');
+      document.getElementById('crop-modal').classList.add('active');
+      drawCanvas();
+    }
+
+    function switchTab(tab, btn) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn
