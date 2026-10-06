@@ -6,23 +6,29 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Soru Defteri</title>
+
+  <!-- Cropper.js Stil ve Kütüphanesi -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
   <style>
     :root {
       --primary: #007aff;
       --bg: #f2f2f7;
       --card: #ffffff;
       --danger: #ff3b30;
-      --warning: #ff9500;
+      --success: #34c759;
     }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       margin: 0;
       padding: 16px;
       background-color: var(--bg);
       color: #1c1c1e;
-      padding-bottom: 90px;
+      padding-bottom: 95px;
     }
-    h1 { font-size: 24px; margin-bottom: 12px; }
+    h1 { font-size: 24px; margin: 0 0 12px 0; font-weight: 700; }
     .tabs {
       display: flex;
       background: #e3e3e8;
@@ -32,16 +38,17 @@
     }
     .tab-btn {
       flex: 1;
-      padding: 8px;
+      padding: 8px 4px;
       border: none;
       background: transparent;
       font-weight: 600;
       font-size: 13px;
       border-radius: 7px;
+      cursor: pointer;
     }
     .tab-btn.active {
       background: white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.12);
     }
     .card {
       background: var(--card);
@@ -52,80 +59,174 @@
       display: flex;
       gap: 12px;
       align-items: center;
+      cursor: pointer;
     }
     .card img {
-      width: 65px;
-      height: 65px;
+      width: 70px;
+      height: 70px;
       object-fit: cover;
       border-radius: 8px;
+      background: #e5e5ea;
+      flex-shrink: 0;
     }
-    .card-content { flex: 1; }
-    .student-title { font-weight: bold; font-size: 16px; }
-    .meta-text { font-size: 13px; color: #8e8e93; margin-top: 2px; }
+    .card-content { flex: 1; min-width: 0; }
+    .student-title { font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .meta-text { font-size: 13px; color: #8e8e93; margin-top: 3px; }
     .badge {
       display: inline-block;
-      padding: 2px 6px;
+      padding: 2px 7px;
       border-radius: 4px;
       font-size: 11px;
-      font-weight: bold;
-      margin-top: 4px;
+      font-weight: 600;
+      margin-top: 6px;
     }
     .badge.warn { background: #ffeaa7; color: #d63031; }
+    .badge.ok { background: #e8f5e9; color: #2e7d32; }
+
     .bottom-bar {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(255,255,255,0.9);
-      backdrop-filter: blur(10px);
-      padding: 12px 16px;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      padding: 12px 16px 24px 16px;
       border-top: 1px solid #d1d1d6;
       display: flex;
       justify-content: center;
+      z-index: 50;
     }
     .btn-camera {
       background: var(--primary);
       color: white;
       border: none;
-      border-radius: 24px;
-      padding: 12px 24px;
+      border-radius: 26px;
+      padding: 14px 24px;
       font-size: 16px;
-      font-weight: bold;
+      font-weight: 700;
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
+      box-shadow: 0 4px 12px rgba(0,122,255,0.3);
+      cursor: pointer;
     }
-    /* Modal Form */
+
+    /* Modallar */
     .modal {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.6);
       align-items: flex-end;
+      z-index: 100;
     }
     .modal.active { display: flex; }
     .sheet {
       background: white;
       width: 100%;
-      border-radius: 16px 16px 0 0;
+      border-radius: 18px 18px 0 0;
       padding: 20px;
-      max-height: 85vh;
+      max-height: 92vh;
       overflow-y: auto;
-      box-sizing: border-box;
     }
     .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-    .form-group input, .form-group select {
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #3a3a3c; }
+    .form-group input {
       width: 100%;
-      padding: 10px;
+      padding: 11px;
+      border: 1px solid #c6c6c8;
+      border-radius: 9px;
+      font-size: 15px;
+    }
+
+    /* Kırpma ve Filtre Ekranı */
+    .crop-container {
+      width: 100%;
+      height: 320px;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .filter-options {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 12px;
+    }
+    .filter-btn {
+      flex: 1;
+      min-width: 75px;
+      padding: 7px 4px;
+      font-size: 12px;
+      font-weight: 600;
       border: 1px solid #d1d1d6;
       border-radius: 8px;
-      font-size: 15px;
-      box-sizing: border-box;
+      background: #f2f2f7;
+      cursor: pointer;
+      text-align: center;
     }
+    .filter-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* Tam Ekran Kaliteli Görüntüleyici (Lightbox) */
+    .fullscreen-viewer {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.96);
+      z-index: 200;
+      flex-direction: column;
+    }
+    .fullscreen-viewer.active { display: flex; }
+    .viewer-header {
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+    }
+    .viewer-body {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+    }
+    .viewer-body img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transform-origin: center center;
+      transition: transform 0.2s ease-out;
+    }
+    .viewer-footer {
+      padding: 14px 16px 28px 16px;
+      background: rgba(20,20,20,0.85);
+      backdrop-filter: blur(10px);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-action {
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .btn-whatsapp { background: #25D366; color: white; }
+    .btn-solve { background: var(--success); color: white; }
   </style>
 </head>
 <body>
@@ -133,92 +234,223 @@
   <h1>Soru Defteri</h1>
 
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('pending')">Bekleyenler</button>
-    <button class="tab-btn" onclick="switchTab('archive')">Soru Arşivi</button>
-    <button class="tab-btn" onclick="switchTab('solved')">Çözülenler</button>
+    <button class="tab-btn active" onclick="switchTab('pending', this)">Bekleyenler</button>
+    <button class="tab-btn" onclick="switchTab('archive', this)">Soru Arşivi</button>
+    <button class="tab-btn" onclick="switchTab('solved', this)">Çözülenler</button>
   </div>
 
   <div id="list-container"></div>
 
-  <!-- Alt Kamera Butonu -->
+  <!-- Kamera Butonu -->
   <div class="bottom-bar">
     <label class="btn-camera">
-      📷 Soru Fotoğrafı Çek
+      📷 Soru Fotoğrafı Çek / Yükle
       <input type="file" accept="image/*" capture="environment" id="camera-input" style="display:none;" onchange="handleImageSelected(event)">
     </label>
   </div>
 
-  <!-- Kayıt Modalı -->
+  <!-- 1. Aşama: CamScanner Tarzı Kırpma & Filtreleme Ekranı -->
+  <div class="modal" id="crop-modal">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="margin:0;">Kırp ve Netleştir</h3>
+        <button onclick="rotateCropper()" style="border:none; background:#e3e3e8; padding:6px 12px; border-radius:6px; font-weight:600;">🔄 Çevir</button>
+      </div>
+
+      <div class="crop-container">
+        <img id="cropper-target-img" style="max-width:100%; display:block;">
+      </div>
+
+      <label style="font-size:12px; font-weight:700; color:#8e8e93; display:block; margin-bottom:5px;">BELGE FİLTRESİ (CamScanner Modu)</label>
+      <div class="filter-options">
+        <button class="filter-btn active" onclick="selectFilter('enhanced', this)">📄 Net Belge</button>
+        <button class="filter-btn" onclick="selectFilter('original', this)">Orijinal</button>
+        <button class="filter-btn" onclick="selectFilter('bw', this)">Siyah-Beyaz</button>
+        <button class="filter-btn" onclick="selectFilter('contrast', this)">Yüksek Kontrast</button>
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="closeCropModal()">İptal</button>
+        <button style="flex:1; padding:12px; border:none; background:var(--primary); color:white; border-radius:9px; font-weight:bold;" onclick="applyCropAndProceed()">Tamamla & İlerle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Aşama: Öğrenci ve Soru Bilgisi Formu -->
   <div class="modal" id="save-modal">
     <div class="sheet">
-      <h3 style="margin-top:0;">Soruyu Kaydet</h3>
-      <img id="preview-img" style="width:100%; max-height:180px; object-fit:contain; border-radius:8px; margin-bottom:12px;">
+      <h3 style="margin-top:0;">Öğrenci Bilgisi Ekle</h3>
+      <img id="final-preview-img" style="width:100%; max-height:180px; object-fit:contain; border-radius:8px; margin-bottom:12px; background:#f2f2f7;">
       
       <div class="form-group">
-        <label>Öğrenci Adı (Boşsa sadece arşiv)</label>
-        <input type="text" id="inp-student" placeholder="ör. Ali K.">
+        <label>Öğrenci Adı (Boş bırakılırsa sadece arşive gider)</label>
+        <input type="text" id="inp-student" placeholder="ör. Ali Kaya">
       </div>
       <div class="form-group">
-        <label>Ders & Konu</label>
-        <input type="text" id="inp-topic" placeholder="ör. Matematik - Çarpanlara Ayırma">
+        <label>Ders ve Konu</label>
+        <input type="text" id="inp-topic" placeholder="ör. Geometri - Çemberde Açı">
       </div>
       <div class="form-group">
-        <label>
-          <input type="checkbox" id="inp-archive"> Soru Havuzuna / Arşive de Ekle
+        <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin-top:8px;">
+          <input type="checkbox" id="inp-archive" style="width:auto;"> Kalıcı Soru Havuzuna / Arşive Ekle
         </label>
       </div>
       
       <div style="display:flex; gap:8px; margin-top:16px;">
-        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:8px; font-weight:bold;" onclick="closeModal()">Vazgeç</button>
-        <button style="flex:1; padding:12px; border:none; background:var(--primary); color:white; border-radius:8px; font-weight:bold;" onclick="saveQuestion()">Kaydet</button>
+        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="closeSaveModal()">Geri</button>
+        <button style="flex:1; padding:12px; border:none; background:var(--primary); color:white; border-radius:9px; font-weight:bold;" onclick="saveRecord()">Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Aşama: Tam Kalitede İnceleme & Yakınlaştırma (Lightbox) -->
+  <div class="fullscreen-viewer" id="viewer-modal">
+    <div class="viewer-header">
+      <div id="viewer-title" style="font-weight:700; font-size:16px;"></div>
+      <button onclick="closeViewer()" style="background:transparent; border:none; color:white; font-size:26px; cursor:pointer;">✕</button>
+    </div>
+    <div class="viewer-body" onclick="toggleZoom(event)">
+      <img id="viewer-img" src="" alt="Orijinal Soru">
+    </div>
+    <div class="viewer-footer">
+      <div id="viewer-meta" style="font-size:13px; color:#c7c7cc;"></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-action btn-whatsapp" style="flex:1;" onclick="shareToWhatsApp()">💬 WhatsApp'ta Aç</button>
+        <button id="viewer-solve-btn" class="btn-action btn-solve" style="flex:1;" onclick="markCurrentSolved()">✓ Çözüldü Yap</button>
       </div>
     </div>
   </div>
 
   <script>
     let db;
-    let currentImageBase64 = null;
+    let cropper = null;
+    let selectedFilter = 'enhanced';
+    let processedImageDataUrl = null;
     let currentTab = 'pending';
+    let currentViewingItem = null;
+    let isZoomed = false;
 
-    // IndexedDB Başlatma (Telefonda kalıcı depolama)
-    const request = indexedDB.open("SoruDefteriDB", 1);
+    // Veritabanı (IndexedDB)
+    const request = indexedDB.open("SoruDefteriDB", 2);
     request.onupgradeneeded = (e) => {
       db = e.target.result;
-      db.createObjectStore("questions", { keyPath: "id", autoIncrement: true });
+      if (!db.objectStoreNames.contains("questions")) {
+        db.createObjectStore("questions", { keyPath: "id", autoIncrement: true });
+      }
     };
     request.onsuccess = (e) => {
       db = e.target.result;
       loadQuestions();
     };
 
+    // Kamera veya Galeri Seçimi
     function handleImageSelected(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = (e) => {
-        currentImageBase64 = e.target.result;
-        document.getElementById('preview-img').src = currentImageBase64;
-        document.getElementById('save-modal').classList.add('active');
+        const image = document.getElementById('cropper-target-img');
+        image.src = e.target.result;
+        document.getElementById('crop-modal').classList.add('active');
+
+        if (cropper) cropper.destroy();
+        cropper = new Cropper(image, {
+          viewMode: 1,
+          autoCropArea: 0.95,
+          responsive: true,
+          restore: false
+        });
       };
       reader.readAsDataURL(file);
     }
 
-    function closeModal() {
-      document.getElementById('save-modal').classList.remove('active');
-      document.getElementById('inp-student').value = '';
-      document.getElementById('inp-topic').value = '';
-      document.getElementById('inp-archive').checked = false;
+    function rotateCropper() {
+      if (cropper) cropper.rotate(90);
+    }
+
+    function selectFilter(filterName, btn) {
+      selectedFilter = filterName;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function closeCropModal() {
+      document.getElementById('crop-modal').classList.remove('active');
+      if (cropper) { cropper.destroy(); cropper = null; }
       document.getElementById('camera-input').value = '';
     }
 
-    function saveQuestion() {
+    // CamScanner Tarzı Filtre Uygulama & Kırpma Motoru
+    function applyCropAndProceed() {
+      if (!cropper) return;
+      
+      // Orijinal netliği korumak için yüksek çözünürlüklü canvas alıyoruz
+      const canvas = cropper.getCroppedCanvas({
+        maxWidth: 2400,
+        maxHeight: 2400,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high'
+      });
+
+      const ctx = canvas.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = imgData.data;
+
+      // Belge Filtreleme Algoritmaları
+      if (selectedFilter === 'enhanced') {
+        // CamScanner Modu: Zemin beyazlatma + Metin kontrastını artırma
+        for (let i = 0; i < d.length; i += 4) {
+          let gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+          // Arka plan açık tonları saf beyaza iter, koyu tonları daha net siyah yapar
+          if (gray > 160) {
+            gray = Math.min(255, gray * 1.25);
+          } else {
+            gray = gray * 0.75;
+          }
+          d[i] = gray;
+          d[i+1] = gray;
+          d[i+2] = gray;
+        }
+        ctx.putImageData(imgData, 0, 0);
+      } else if (selectedFilter === 'bw') {
+        // Eşikli Siyah-Beyaz
+        for (let i = 0; i < d.length; i += 4) {
+          let gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+          let v = gray > 140 ? 255 : 0;
+          d[i] = v; d[i+1] = v; d[i+2] = v;
+        }
+        ctx.putImageData(imgData, 0, 0);
+      } else if (selectedFilter === 'contrast') {
+        // Yüksek Kontrast
+        const factor = (259 * (60 + 255)) / (255 * (259 - 60));
+        for (let i = 0; i < d.length; i += 4) {
+          d[i] = factor * (d[i] - 128) + 128;
+          d[i+1] = factor * (d[i+1] - 128) + 128;
+          d[i+2] = factor * (d[i+2] - 128) + 128;
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+
+      processedImageDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      document.getElementById('final-preview-img').src = processedImageDataUrl;
+
+      closeCropModal();
+      document.getElementById('save-modal').classList.add('active');
+    }
+
+    function closeSaveModal() {
+      document.getElementById('save-modal').classList.remove('active');
+      document.getElementById('camera-input').value = '';
+    }
+
+    function saveRecord() {
       const student = document.getElementById('inp-student').value.trim();
       const topic = document.getElementById('inp-topic').value.trim() || 'Genel';
       const isArchived = document.getElementById('inp-archive').checked;
 
       const record = {
-        image: currentImageBase64,
+        image: processedImageDataUrl,
         studentName: student,
         topic: topic,
         isArchived: isArchived,
@@ -229,15 +461,18 @@
       const tx = db.transaction("questions", "readwrite");
       tx.objectStore("questions").add(record);
       tx.oncomplete = () => {
-        closeModal();
+        closeSaveModal();
+        document.getElementById('inp-student').value = '';
+        document.getElementById('inp-topic').value = '';
+        document.getElementById('inp-archive').checked = false;
         loadQuestions();
       };
     }
 
-    function switchTab(tab) {
+    function switchTab(tab, btn) {
       currentTab = tab;
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
       loadQuestions();
     }
 
@@ -262,7 +497,7 @@
         }
 
         if (filtered.length === 0) {
-          container.innerHTML = '<div style="text-align:center; color:#8e8e93; margin-top:40px;">Kayıt bulunamadı.</div>';
+          container.innerHTML = '<div style="text-align:center; color:#8e8e93; margin-top:50px;">Bu kategoride soru bulunmuyor.</div>';
           return;
         }
 
@@ -270,30 +505,74 @@
           const days = Math.floor((new Date() - new Date(q.date)) / (1000 * 60 * 60 * 24));
           const card = document.createElement('div');
           card.className = 'card';
+          card.onclick = () => openViewer(q);
           card.innerHTML = `
             <img src="${q.image}">
             <div class="card-content">
               <div class="student-title">${q.studentName || 'Arşiv Sorusu'}</div>
               <div class="meta-text">${q.topic}</div>
               ${!q.isSolved && q.studentName ? `<span class="badge warn">${days} gün önce soruldu</span>` : ''}
+              ${q.isSolved ? `<span class="badge ok">Çözüldü</span>` : ''}
             </div>
-            <div>
-              ${!q.isSolved ? `<button onclick="markSolved(${q.id})" style="border:none; background:#34c759; color:white; border-radius:6px; padding:6px 10px; font-size:12px;">Çözüldü</button>` : ''}
-            </div>
+            <div style="font-size:18px; color:#c7c7cc;">›</div>
           `;
           container.appendChild(card);
         });
       };
     }
 
-    function markSolved(id) {
+    // Tam Ekran Yüksek Çözünürlüklü Önizleme (Lightbox)
+    function openViewer(item) {
+      currentViewingItem = item;
+      isZoomed = false;
+      const img = document.getElementById('viewer-img');
+      img.src = item.image;
+      img.style.transform = 'scale(1)';
+
+      document.getElementById('viewer-title').innerText = item.studentName ? item.studentName + " - Sorusu" : "Arşiv Sorusu";
+      document.getElementById('viewer-meta').innerText = `${item.topic} • ${new Date(item.date).toLocaleDateString('tr-TR')}`;
+      
+      const solveBtn = document.getElementById('viewer-solve-btn');
+      if (item.isSolved) {
+        solveBtn.innerText = "✓ Çözüldü";
+        solveBtn.style.opacity = "0.5";
+      } else {
+        solveBtn.innerText = "✓ Çözüldü Olarak İşaretle";
+        solveBtn.style.opacity = "1";
+      }
+
+      document.getElementById('viewer-modal').classList.add('active');
+    }
+
+    function toggleZoom(e) {
+      const img = document.getElementById('viewer-img');
+      isZoomed = !isZoomed;
+      img.style.transform = isZoomed ? 'scale(2.2)' : 'scale(1)';
+    }
+
+    function closeViewer() {
+      document.getElementById('viewer-modal').classList.remove('active');
+      currentViewingItem = null;
+    }
+
+    function markCurrentSolved() {
+      if (!currentViewingItem) return;
       const tx = db.transaction("questions", "readwrite");
       const store = tx.objectStore("questions");
-      store.get(id).onsuccess = (e) => {
+      store.get(currentViewingItem.id).onsuccess = (e) => {
         const data = e.target.result;
         data.isSolved = true;
-        store.put(data).onsuccess = () => loadQuestions();
+        store.put(data).onsuccess = () => {
+          closeViewer();
+          loadQuestions();
+        };
       };
+    }
+
+    function shareToWhatsApp() {
+      if (!currentViewingItem) return;
+      const text = encodeURIComponent(`Merhaba ${currentViewingItem.studentName || ''}, sorduğun soru kaydını inceliyorum.`);
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
     }
   </script>
 </body>
