@@ -7,9 +7,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Soru Defteri</title>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-
   <style>
     :root {
       --primary: #007aff;
@@ -119,7 +116,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.65);
+      background: rgba(0,0,0,0.7);
       align-items: flex-end;
       z-index: 100;
     }
@@ -129,77 +126,54 @@
       width: 100%;
       border-radius: 18px 18px 0 0;
       padding: 16px;
-      max-height: 94vh;
+      max-height: 96vh;
       display: flex;
       flex-direction: column;
     }
 
-    /* Dikey Kırpma Alanı & Kalın Parmak Tutamaçları */
-    .crop-wrapper {
+    /* 4 Köşeli Bağımsız Kırpma Alanı */
+    .crop-canvas-wrapper {
       position: relative;
       width: 100%;
-      height: 48vh;
+      height: 52vh;
       background: #111;
       border-radius: 12px;
       overflow: hidden;
-      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
     }
-    .crop-wrapper img {
+    #cropCanvas {
       max-width: 100%;
       max-height: 100%;
       display: block;
+      touch-action: none;
     }
 
-    /* Parmakla Rahat Tutulabilen Geniş Tutamaçlar */
-    .cropper-point {
-      width: 22px !important;
-      height: 22px !important;
-      background-color: var(--primary) !important;
-      border: 3px solid white !important;
-      border-radius: 50% !important;
-      opacity: 0.9 !important;
-    }
-    .cropper-line {
-      background-color: var(--primary) !important;
-      opacity: 0.6 !important;
-    }
-    .cropper-view-box {
-      outline: 2px solid var(--primary) !important;
-      outline-color: var(--primary) !important;
+    /* Parmakla Ayarlarken Hassas Büyüteç */
+    #loupe {
+      display: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      background-repeat: no-repeat;
+      z-index: 110;
+      pointer-events: none;
     }
 
-    /* Hızlı Ayar Barı (Tam Sayfa, Üst, Alt vb.) */
-    .quick-crop-bar {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-    .btn-quick {
-      flex: 1;
-      padding: 6px 4px;
-      background: #e5e5ea;
-      border: none;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #1c1c1e;
-      cursor: pointer;
-    }
-
-    /* Canlı Filtre Sınıfları */
-    .filter-original { filter: none !important; }
-    .filter-magic { filter: contrast(150%) brightness(115%) saturate(120%) !important; }
-    .filter-bw { filter: grayscale(100%) contrast(250%) brightness(110%) !important; }
-    .filter-contrast { filter: contrast(180%) brightness(95%) !important; }
-    .filter-bright { filter: brightness(130%) contrast(120%) !important; }
-    .filter-gray { filter: grayscale(100%) contrast(110%) !important; }
-
+    /* Canlı Filtre Seçimi */
     .filter-scroll {
       display: flex;
       gap: 8px;
       overflow-x: auto;
-      padding: 4px 0 10px 0;
-      margin-bottom: 8px;
+      padding: 6px 0 10px 0;
+      margin-top: 6px;
     }
     .filter-chip {
       flex: 0 0 auto;
@@ -305,44 +279,34 @@
     </label>
   </div>
 
-  <!-- Çözüm Fotoğrafı Yükleme -->
   <input type="file" accept="image/*" capture="environment" id="solution-input" style="display:none;" onchange="handleSolutionUploaded(event)">
 
-  <!-- 1. Aşama: Gelişmiş Dikey Kırpma & Filtre Ekranı -->
+  <!-- 1. Aşama: 4 Köşeli Serbest Perspektif Kırpma Ekranı -->
   <div class="modal" id="crop-modal">
     <div class="sheet">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h3 style="margin:0; font-size:16px;">Kırp ve Netleştir</h3>
-        <button onclick="rotateCropper()" style="border:none; background:#e3e3e8; padding:6px 12px; border-radius:6px; font-weight:600;">🔄 Çevir</button>
+        <span style="font-size:14px; font-weight:700;">4 Köşeyi Bağımsız Ayarla</span>
+        <button onclick="detectQuestionBoundsPrompt()" style="border:none; background:#e0e7ff; color:#3730a3; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:700;">🔍 Otomatik Algıla</button>
       </div>
 
-      <!-- Kırpma Önizleme Alanı -->
-      <div class="crop-wrapper" id="crop-wrapper-box">
-        <img id="cropper-target-img">
-      </div>
-
-      <!-- Kalın Parmak İçin Hızlı Seçim Butonları -->
-      <div class="quick-crop-bar">
-        <button class="btn-quick" onclick="setQuickCrop('full')">📐 Tüm Sayfa</button>
-        <button class="btn-quick" onclick="setQuickCrop('top')">⬆️ Üst Soru</button>
-        <button class="btn-quick" onclick="setQuickCrop('bottom')">⬇️ Alt Soru</button>
-        <button class="btn-quick" onclick="adjustCropSize(1.1)">🔍 Genişlet</button>
-        <button class="btn-quick" onclick="adjustCropSize(0.9)">🎯 Daralt</button>
+      <div class="crop-canvas-wrapper" id="canvas-container">
+        <canvas id="cropCanvas"></canvas>
+        <div id="loupe"></div>
       </div>
 
       <!-- Canlı CamScanner Filtreleri -->
       <div class="filter-scroll">
-        <button class="filter-chip active" onclick="applyLiveFilter('magic', this)">📄 Magic Color</button>
-        <button class="filter-chip" onclick="applyLiveFilter('bw', this)">🖤 Siyah-Beyaz</button>
-        <button class="filter-chip" onclick="applyLiveFilter('contrast', this)">⚡ Yüksek Kontrast</button>
-        <button class="filter-chip" onclick="applyLiveFilter('bright', this)">✨ Aydınlat</button>
-        <button class="filter-chip" onclick="applyLiveFilter('gray', this)">🌑 Gri Ton</button>
-        <button class="filter-chip" onclick="applyLiveFilter('original', this)">Orijinal</button>
+        <button class="filter-chip active" onclick="selectFilter('magic', this)">📄 Magic Color</button>
+        <button class="filter-chip" onclick="selectFilter('bw', this)">🖤 Siyah-Beyaz</button>
+        <button class="filter-chip" onclick="selectFilter('contrast', this)">⚡ Yüksek Kontrast</button>
+        <button class="filter-chip" onclick="selectFilter('bright', this)">✨ Aydınlat</button>
+        <button class="filter-chip" onclick="selectFilter('gray', this)">🌑 Gri Ton</button>
+        <button class="filter-chip" onclick="selectFilter('original', this)">Orijinal</button>
       </div>
 
       <div style="display:flex; gap:8px;">
-        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="cancelEntireProcess()">Vazgeç</button>
-        <button style="flex:1; padding:12px; border:none; background:var(--primary); color:white; border-radius:9px; font-weight:bold;" onclick="applyCropAndProceed()">Devam Et</button>
+        <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="cancelCrop()">Vazgeç</button>
+        <button style="flex:1; padding:12px; border:none; background:var(--primary); color:white; border-radius:9px; font-weight:bold;" onclick="applyPerspectiveCropAndProceed()">Devam Et</button>
       </div>
     </div>
   </div>
@@ -351,7 +315,7 @@
   <div class="modal" id="save-modal">
     <div class="sheet">
       <h3 style="margin-top:0;">Öğrenci Bilgisi Ekle</h3>
-      <img id="final-preview-img" style="width:100%; max-height:180px; object-fit:contain; border-radius:8px; margin-bottom:12px; background:#f2f2f7;">
+      <img id="final-preview-img" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:12px; background:#f2f2f7;">
       
       <div class="form-group">
         <label>Öğrenci Adı (Boşsa sadece arşiv)</label>
@@ -359,7 +323,7 @@
       </div>
       <div class="form-group">
         <label>Ders ve Konu</label>
-        <input type="text" id="inp-topic" placeholder="ör. Matematik - Logaritma">
+        <input type="text" id="inp-topic" placeholder="ör. Matematik - Parabol">
       </div>
       <div class="form-group">
         <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin-top:8px;">
@@ -367,7 +331,6 @@
         </label>
       </div>
       
-      <!-- GERİ TUŞU: Fotoğrafı silmez, kırpma ekranına geri götürür -->
       <div style="display:flex; gap:8px; margin-top:16px;">
         <button style="flex:1; padding:12px; border:none; background:#e3e3e8; border-radius:9px; font-weight:bold;" onclick="backToCropScreen()">← Geri (Filtreye Dön)</button>
         <button style="flex:1; padding:12px; border:none; background:var(--primary); color:white; border-radius:9px; font-weight:bold;" onclick="saveRecord()">Kaydet</button>
@@ -412,15 +375,25 @@
 
   <script>
     let db;
-    let cropper = null;
-    let activeFilter = 'magic';
+    let rawImage = new Image();
+    let currentRawDataUrl = null;
     let processedImageDataUrl = null;
-    let currentRawImageSrc = null;
+    let activeFilter = 'magic';
     let currentTab = 'pending';
     let currentViewingItem = null;
     let isZoomed = false;
 
-    // IndexedDB
+    // 4 Köşe Koordinatları (Görselin Doğal Piksel Boyutlarında)
+    let corners = [
+      { x: 0, y: 0 }, // Sol Üst
+      { x: 0, y: 0 }, // Sağ Üst
+      { x: 0, y: 0 }, // Sağ Alt
+      { x: 0, y: 0 }  // Sol Alt
+    ];
+    let activeCornerIndex = -1;
+    let canvas, ctx;
+
+    // Veritabanı
     const request = indexedDB.open("SoruDefteriDB", 3);
     request.onupgradeneeded = (e) => {
       db = e.target.result;
@@ -439,324 +412,205 @@
 
       const reader = new FileReader();
       reader.onload = (e) => {
-        currentRawImageSrc = e.target.result;
-        initCropper(currentRawImageSrc);
+        currentRawDataUrl = e.target.result;
+        rawImage.onload = () => {
+          document.getElementById('crop-modal').classList.add('active');
+          initCanvas();
+
+          // KULLANICIYA SORU ALGISI SORUSU
+          setTimeout(() => {
+            if (confirm("Sorunun bulunduğu bölgeyi otomatik olarak algılayıp seçeyim mi?")) {
+              autoDetectQuestion();
+            } else {
+              resetCornersToDefault();
+            }
+          }, 200);
+        };
+        rawImage.src = currentRawDataUrl;
       };
       reader.readAsDataURL(file);
     }
 
-    function initCropper(src) {
-      const image = document.getElementById('cropper-target-img');
-      image.src = src;
-      document.getElementById('crop-modal').classList.add('active');
+    function initCanvas() {
+      canvas = document.getElementById('cropCanvas');
+      ctx = canvas.getContext('2d');
 
-      if (cropper) cropper.destroy();
+      const container = document.getElementById('canvas-container');
+      const maxW = container.clientWidth;
+      const maxH = container.clientHeight;
 
-      cropper = new Cropper(image, {
-        viewMode: 2,               // Görsel dışına taşmayı kesin olarak engeller
-        autoCropArea: 0.90,        // Varsayılan olarak sorunun %90'ını odaklar
-        responsive: true,
-        restore: false,
-        dragMode: 'crop',
-        movable: false,
-        rotatable: true,
-        zoomable: false,           // Yanlışlıkla görseli kaydırmayı engeller
-        touchDragZoom: false,
-        ready: function() {
-          applyLiveFilter(activeFilter, document.querySelector(`.filter-chip[onclick*="${activeFilter}"]`));
+      const ratio = Math.min(maxW / rawImage.naturalWidth, maxH / rawImage.naturalHeight);
+      canvas.width = rawImage.naturalWidth * ratio;
+      canvas.height = rawImage.naturalHeight * ratio;
+
+      attachTouchEvents();
+    }
+
+    function resetCornersToDefault() {
+      const w = rawImage.naturalWidth;
+      const h = rawImage.naturalHeight;
+      // Kenarlardan %5 içeride 4 bağımsız köşe başlatır
+      corners = [
+        { x: w * 0.05, y: h * 0.05 },
+        { x: w * 0.95, y: h * 0.05 },
+        { x: w * 0.95, y: h * 0.95 },
+        { x: w * 0.05, y: h * 0.95 }
+      ];
+      drawCanvas();
+    }
+
+    // Akıllı Soru Algılama (CamScanner Soru Tespiti)
+    function detectQuestionBoundsPrompt() {
+      autoDetectQuestion();
+    }
+
+    function autoDetectQuestion() {
+      // Arka planda küçük bir analiz canvası oluştur
+      const off = document.createElement('canvas');
+      const scale = 0.25; // Hızlı analiz için ölçeklendir
+      off.width = rawImage.naturalWidth * scale;
+      off.height = rawImage.naturalHeight * scale;
+      const octx = off.getContext('2d');
+      octx.drawImage(rawImage, 0, 0, off.width, off.height);
+
+      const idata = octx.getImageData(0, 0, off.width, off.height);
+      const d = idata.data;
+
+      let minX = off.width, maxX = 0, minY = off.height, maxY = 0;
+      let inkFound = false;
+
+      // Siyah yazı/çizgi piksellerini tarar
+      for (let y = 0; y < off.height; y++) {
+        for (let x = 0; x < off.width; x++) {
+          const idx = (y * off.width + x) * 4;
+          const gray = 0.299 * d[idx] + 0.587 * d[idx+1] + 0.114 * d[idx+2];
+          // Koyu yazı pikselleri
+          if (gray < 110) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+            inkFound = true;
+          }
         }
-      });
-    }
-
-    function rotateCropper() {
-      if (cropper) cropper.rotate(90);
-    }
-
-    // Hazır Hızlı Alan Seçimleri (Kalın parmaklar için kurtarıcı)
-    function setQuickCrop(mode) {
-      if (!cropper) return;
-      const data = cropper.getImageData();
-
-      if (mode === 'full') {
-        cropper.setData({ x: 0, y: 0, width: data.naturalWidth, height: data.naturalHeight });
-      } else if (mode === 'top') {
-        cropper.setData({ x: 0, y: 0, width: data.naturalWidth, height: data.naturalHeight * 0.52 });
-      } else if (mode === 'bottom') {
-        cropper.setData({ x: 0, y: data.naturalHeight * 0.48, width: data.naturalWidth, height: data.naturalHeight * 0.52 });
       }
-    }
 
-    function adjustCropSize(ratio) {
-      if (!cropper) return;
-      const data = cropper.getData();
-      cropper.setData({
-        x: Math.max(0, data.x - (data.width * (ratio - 1)) / 2),
-        y: Math.max(0, data.y - (data.height * (ratio - 1)) / 2),
-        width: data.width * ratio,
-        height: data.height * ratio
-      });
-    }
+      const w = rawImage.naturalWidth;
+      const h = rawImage.naturalHeight;
 
-    function applyLiveFilter(filterName, btn) {
-      activeFilter = filterName;
-      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
-      if (btn) btn.classList.add('active');
+      if (inkFound && (maxX - minX) > 20) {
+        // Sorunun çevresine hafif nefes payı bırak
+        const pad = 20 / scale;
+        const left = Math.max(0, (minX / scale) - pad);
+        const right = Math.min(w, (maxX / scale) + pad);
+        const top = Math.max(0, (minY / scale) - pad);
+        const bottom = Math.min(h, (maxY / scale) + pad);
 
-      const wrapper = document.getElementById('crop-wrapper-box');
-      wrapper.className = 'crop-wrapper filter-' + filterName;
-    }
-
-    function cancelEntireProcess() {
-      document.getElementById('crop-modal').classList.remove('active');
-      if (cropper) { cropper.destroy(); cropper = null; }
-      document.getElementById('camera-input').value = '';
-      currentRawImageSrc = null;
-    }
-
-    function applyCropAndProceed() {
-      if (!cropper) return;
-
-      // Sınırlar dışına taşmadan hassas kesim
-      const croppedCanvas = cropper.getCroppedCanvas({
-        maxWidth: 2200,
-        maxHeight: 2800,
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: 'high'
-      });
-
-      const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = croppedCanvas.width;
-      finalCanvas.height = croppedCanvas.height;
-      const ctx = finalCanvas.getContext('2d');
-
-      if (activeFilter === 'magic') {
-        ctx.filter = 'contrast(150%) brightness(115%) saturate(120%)';
-      } else if (activeFilter === 'bw') {
-        ctx.filter = 'grayscale(100%) contrast(250%) brightness(110%)';
-      } else if (activeFilter === 'contrast') {
-        ctx.filter = 'contrast(180%) brightness(95%)';
-      } else if (activeFilter === 'bright') {
-        ctx.filter = 'brightness(130%) contrast(120%)';
-      } else if (activeFilter === 'gray') {
-        ctx.filter = 'grayscale(100%) contrast(110%)';
+        corners = [
+          { x: left, y: top },
+          { x: right, y: top },
+          { x: right, y: bottom },
+          { x: left, y: bottom }
+        ];
       } else {
-        ctx.filter = 'none';
+        resetCornersToDefault();
       }
-
-      ctx.drawImage(croppedCanvas, 0, 0);
-
-      processedImageDataUrl = finalCanvas.toDataURL('image/jpeg', 0.90);
-      document.getElementById('final-preview-img').src = processedImageDataUrl;
-
-      // Kırpma ekranını gizle ama cropper nesnesini yok etme (geri dönülürse kullanılsın)
-      document.getElementById('crop-modal').classList.remove('active');
-      document.getElementById('save-modal').classList.add('active');
+      drawCanvas();
     }
 
-    // GERİ TUŞU: Fotoğrafı koruyarak filtre/kırpma ekranını tekrar açar
-    function backToCropScreen() {
-      document.getElementById('save-modal').classList.remove('active');
-      document.getElementById('crop-modal').classList.add('active');
+    // Dokunmatik 4 Köşe Kontrolü
+    function attachTouchEvents() {
+      canvas.onpointerdown = handlePointerDown;
+      canvas.onpointermove = handlePointerMove;
+      canvas.onpointerup = handlePointerUp;
+      canvas.onpointercancel = handlePointerUp;
     }
 
-    function saveRecord() {
-      const student = document.getElementById('inp-student').value.trim();
-      const topic = document.getElementById('inp-topic').value.trim() || 'Genel';
-      const isArchived = document.getElementById('inp-archive').checked;
-
-      const record = {
-        image: processedImageDataUrl,
-        studentName: student,
-        topic: topic,
-        isArchived: isArchived,
-        isSolved: false,
-        solutionImage: null,
-        date: new Date().toISOString()
-      };
-
-      const tx = db.transaction("questions", "readwrite");
-      tx.objectStore("questions").add(record);
-      tx.oncomplete = () => {
-        document.getElementById('save-modal').classList.remove('active');
-        document.getElementById('inp-student').value = '';
-        document.getElementById('inp-topic').value = '';
-        document.getElementById('inp-archive').checked = false;
-        document.getElementById('camera-input').value = '';
-        if (cropper) { cropper.destroy(); cropper = null; }
-        currentRawImageSrc = null;
-        loadQuestions();
-      };
+    function scaleToDisplay(point) {
+      const scaleX = canvas.width / rawImage.naturalWidth;
+      const scaleY = canvas.height / rawImage.naturalHeight;
+      return { x: point.x * scaleX, y: point.y * scaleY };
     }
 
-    function switchTab(tab, btn) {
-      currentTab = tab;
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      loadQuestions();
+    function scaleToNatural(point) {
+      const scaleX = rawImage.naturalWidth / canvas.width;
+      const scaleY = rawImage.naturalHeight / canvas.height;
+      return { x: point.x * scaleX, y: point.y * scaleY };
     }
 
-    function loadQuestions() {
-      if (!db) return;
-      const tx = db.transaction("questions", "readonly");
-      const store = tx.objectStore("questions");
-      const req = store.getAll();
+    function handlePointerDown(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
 
-      req.onsuccess = () => {
-        const items = req.result.reverse();
-        const container = document.getElementById('list-container');
-        container.innerHTML = '';
+      activeCornerIndex = -1;
+      let minDistance = 45; // Parmağın kolay yakalaması için geniş temas yarıçapı
 
-        let filtered = [];
-        if (currentTab === 'pending') {
-          filtered = items.filter(x => x.studentName && !x.isSolved);
-        } else if (currentTab === 'archive') {
-          filtered = items.filter(x => x.isArchived);
-        } else {
-          filtered = items.filter(x => x.isSolved);
+      corners.forEach((c, idx) => {
+        const dp = scaleToDisplay(c);
+        const dist = Math.hypot(dp.x - clickX, dp.y - clickY);
+        if (dist < minDistance) {
+          minDistance = dist;
+          activeCornerIndex = idx;
         }
+      });
 
-        if (filtered.length === 0) {
-          container.innerHTML = '<div style="text-align:center; color:#8e8e93; margin-top:50px;">Bu kategoride soru bulunmuyor.</div>';
-          return;
-        }
-
-        filtered.forEach(q => {
-          const days = Math.floor((new Date() - new Date(q.date)) / (1000 * 60 * 60 * 24));
-          const card = document.createElement('div');
-          card.className = 'card';
-          card.onclick = () => openViewer(q);
-          card.innerHTML = `
-            <img src="${q.image}">
-            <div class="card-content">
-              <div class="student-title">${q.studentName || 'Arşiv Sorusu'}</div>
-              <div class="meta-text">${q.topic}</div>
-              ${!q.isSolved && q.studentName ? `<span class="badge warn">${days} gün önce soruldu</span>` : ''}
-              ${q.isSolved ? `<span class="badge ok">✓ Çözüldü</span>` : ''}
-              ${q.solutionImage ? `<span class="badge" style="background:#e0e7ff; color:#3730a3;">📸 Çözüm Var</span>` : ''}
-            </div>
-            <div style="font-size:18px; color:#c7c7cc;">›</div>
-          `;
-          container.appendChild(card);
-        });
-      };
-    }
-
-    function openViewer(item) {
-      currentViewingItem = item;
-      isZoomed = false;
-      const img = document.getElementById('viewer-img');
-      img.src = item.image;
-      img.style.transform = 'scale(1)';
-
-      document.getElementById('viewer-title').innerText = item.studentName ? item.studentName : "Arşiv Sorusu";
-      document.getElementById('viewer-meta').innerText = `${item.topic} • ${new Date(item.date).toLocaleDateString('tr-TR')}`;
-      
-      const solveBtn = document.getElementById('viewer-solve-btn');
-      if (item.isSolved) {
-        solveBtn.innerText = "✓ Çözüldü";
-        solveBtn.style.opacity = "0.5";
-      } else {
-        solveBtn.innerText = "✓ Çözüldü Yap";
-        solveBtn.style.opacity = "1";
-      }
-
-      const solArea = document.getElementById('solution-preview-area');
-      solArea.style.display = item.solutionImage ? 'flex' : 'none';
-
-      document.getElementById('viewer-modal').classList.add('active');
-    }
-
-    function toggleZoom() {
-      const img = document.getElementById('viewer-img');
-      isZoomed = !isZoomed;
-      img.style.transform = isZoomed ? 'scale(2.2)' : 'scale(1)';
-    }
-
-    function closeViewer() {
-      document.getElementById('viewer-modal').classList.remove('active');
-      currentViewingItem = null;
-    }
-
-    function markCurrentSolved() {
-      if (!currentViewingItem) return;
-      const tx = db.transaction("questions", "readwrite");
-      const store = tx.objectStore("questions");
-      store.get(currentViewingItem.id).onsuccess = (e) => {
-        const data = e.target.result;
-        data.isSolved = true;
-        store.put(data).onsuccess = () => {
-          currentViewingItem.isSolved = true;
-          document.getElementById('viewer-solve-btn').innerText = "✓ Çözüldü";
-          document.getElementById('viewer-solve-btn').style.opacity = "0.5";
-          loadQuestions();
-        };
-      };
-    }
-
-    function triggerSolutionUpload() {
-      document.getElementById('solution-input').click();
-    }
-
-    function handleSolutionUploaded(event) {
-      const file = event.target.files[0];
-      if (!file || !currentViewingItem) return;
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const solutionBase64 = e.target.result;
-        const tx = db.transaction("questions", "readwrite");
-        const store = tx.objectStore("questions");
-        store.get(currentViewingItem.id).onsuccess = (ev) => {
-          const data = ev.target.result;
-          data.solutionImage = solutionBase64;
-          data.isSolved = true;
-          store.put(data).onsuccess = () => {
-            currentViewingItem = data;
-            document.getElementById('solution-preview-area').style.display = 'flex';
-            document.getElementById('viewer-solve-btn').innerText = "✓ Çözüldü";
-            document.getElementById('viewer-solve-btn').style.opacity = "0.5";
-            loadQuestions();
-            alert("Çözüm fotoğrafı soruya eklendi!");
-          };
-        };
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function viewSolutionImage() {
-      if (currentViewingItem && currentViewingItem.solutionImage) {
-        const img = document.getElementById('viewer-img');
-        if (img.src === currentViewingItem.solutionImage) {
-          img.src = currentViewingItem.image;
-        } else {
-          img.src = currentViewingItem.solutionImage;
-        }
+      if (activeCornerIndex !== -1) {
+        showLoupe(e.clientX, e.clientY, corners[activeCornerIndex]);
       }
     }
 
-    async function shareSolutionViaWhatsApp() {
-      if (!currentViewingItem) return;
+    function handlePointerMove(e) {
+      if (activeCornerIndex === -1) return;
+      const rect = canvas.getBoundingClientRect();
+      const curX = Math.max(0, Math.min(canvas.width, e.clientX - rect.left));
+      const curY = Math.max(0, Math.min(canvas.height, e.clientY - rect.top));
 
-      const textMsg = `Merhaba ${currentViewingItem.studentName || ''}, sorduğun (${currentViewingItem.topic}) sorusunun çözümünü ekte iletiyorum.`;
-      const targetImageBase64 = currentViewingItem.solutionImage || currentViewingItem.image;
+      const natPoint = scaleToNatural({ x: curX, y: curY });
+      corners[activeCornerIndex] = natPoint;
 
-      try {
-        const res = await fetch(targetImageBase64);
-        const blob = await res.blob();
-        const file = new File([blob], "cozum.jpg", { type: "image/jpeg" });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            text: textMsg
-          });
-        } else {
-          window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(textMsg)}`, '_blank');
-        }
-      } catch (err) {
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(textMsg)}`, '_blank');
-      }
+      drawCanvas();
+      showLoupe(e.clientX, e.clientY, natPoint);
     }
-  </script>
-</body>
-</html>
+
+    function handlePointerUp() {
+      activeCornerIndex = -1;
+      document.getElementById('loupe').style.display = 'none';
+    }
+
+    // Parmak Altındaki Noktayı Büyüteçte Gösterme
+    function showLoupe(screenX, screenY, natPoint) {
+      const loupe = document.getElementById('loupe');
+      loupe.style.display = 'block';
+      loupe.style.backgroundImage = `url(${currentRawDataUrl})`;
+
+      const zoom = 2.5;
+      const bgW = rawImage.naturalWidth * (canvas.width / rawImage.naturalWidth) * zoom;
+      const bgH = rawImage.naturalHeight * (canvas.height / rawImage.naturalHeight) * zoom;
+
+      const dp = scaleToDisplay(natPoint);
+      loupe.style.backgroundSize = `${bgW}px ${bgH}px`;
+      loupe.style.backgroundPosition = `${-dp.x * zoom + 50}px ${-dp.y * zoom + 50}px`;
+    }
+
+    // Tuvali Çizme (Çokgen + 4 Köşe Noktası)
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(rawImage, 0, 0, canvas.width, canvas.height);
+
+      // Karartma Maskesi
+      ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Seçili Çokgeni Açma
+      ctx.save();
+      ctx.beginPath();
+      const p0 = scaleToDisplay(corners[0]);
+      ctx.moveTo(p0.x, p0.y);
+      for (let i = 1; i < 4; i++) {
+        const p = scaleToDisplay(corners[i]);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(rawImage, 0, 0, canvas.
