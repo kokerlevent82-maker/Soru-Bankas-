@@ -703,4 +703,216 @@
       };
       const tx = db.transaction("exams", "readwrite");
       tx.objectStore("exams").add(rec);
-      tx.on
+      tx.oncomplete = () => {
+        closeModals();
+        setTab('exams');
+      };
+    }
+
+    function setTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById(`tab-${tab}`);
+      if (btn) btn.classList.add('active');
+      renderList();
+    }
+
+    function renderList() {
+      if (!db) return;
+      const container = document.getElementById('list');
+      container.innerHTML = '';
+
+      if (currentTab === 'exams') {
+        const tx = db.transaction("exams", "readonly");
+        tx.objectStore("exams").getAll().onsuccess = (e) => {
+          const list = e.target.result.reverse();
+          if (list.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#8e8e93; margin-top:40px;">Kayıtlı sınav yok.</div>';
+            return;
+          }
+          list.forEach(ex => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.onclick = () => openViewer(ex, true);
+            card.innerHTML = `
+              <img src="${ex.pages[0]}">
+              <div class="card-info">
+                <div class="card-title">${ex.title}</div>
+                <div class="card-sub">${ex.pages.length} Sayfa • ${new Date(ex.date).toLocaleDateString('tr-TR')}</div>
+              </div>
+            `;
+            container.appendChild(card);
+          });
+        };
+      } else {
+        const tx = db.transaction("questions", "readonly");
+        tx.objectStore("questions").getAll().onsuccess = (e) => {
+          let list = e.target.result.reverse();
+          if (currentTab === 'pending') list = list.filter(x => !x.isSolved);
+          else if (currentTab === 'archive') list = list.filter(x => x.isArchived);
+          else list = list.filter(x => x.isSolved);
+
+          if (list.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#8e8e93; margin-top:40px;">Kayıt bulunamadı.</div>';
+            return;
+          }
+          list.forEach(q => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.onclick = () => openViewer(q, false);
+            card.innerHTML = `
+              <img src="${q.image}">
+              <div class="card-info">
+                <div class="card-title">${q.student}</div>
+                <div class="card-sub">${q.topic} ${q.aiSolution ? '• ✨ AI Çözümü' : ''}</div>
+              </div>
+            `;
+            container.appendChild(card);
+          });
+        };
+      }
+    }
+
+    function openViewer(item, isExam) {
+      currentItem = item;
+      currentItem.isExam = isExam;
+
+      document.getElementById('v-img').src = isExam ? item.pages[0] : item.image;
+      document.getElementById('v-title').innerText = isExam ? item.title : item.student;
+
+      document.getElementById('v-exam-nav').style.display = isExam ? 'flex' : 'none';
+      document.getElementById('v-q-actions').style.display = isExam ? 'none' : 'flex';
+      document.getElementById('btn-solved-toggle').style.display = isExam ? 'none' : 'block';
+
+      const aiBox = document.getElementById('v-ai-box');
+      if (!isExam && item.aiSolution) {
+        aiBox.innerText = "✨ Gemini Çözümü:\n" + item.aiSolution;
+        aiBox.style.display = 'block';
+      } else {
+        aiBox.style.display = 'none';
+      }
+
+      if (isExam) {
+        currentExamIndex = 0;
+        updateExamNav();
+      }
+
+      document.getElementById('viewer').classList.add('active');
+    }
+
+    function updateExamNav() {
+      document.getElementById('v-img').src = currentItem.pages[currentExamIndex];
+      document.getElementById('v-exam-page').innerText = `${currentExamIndex + 1} / ${currentItem.pages.length}`;
+    }
+    function prevExamPage() {
+      if (currentExamIndex > 0) { currentExamIndex--; updateExamNav(); }
+    }
+    function nextExamPage() {
+      if (currentExamIndex < currentItem.pages.length - 1) { currentExamIndex++; updateExamNav(); }
+    }
+
+    function closeViewer() {
+      document.getElementById('viewer').classList.remove('active');
+    }
+
+    function closeModals() {
+      document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+      tempExamPages = [];
+      croppedFinalDataUrl = null;
+    }
+
+    function toggleSolved() {
+      if (!currentItem || currentItem.isExam || !db) return;
+      currentItem.isSolved = !currentItem.isSolved;
+      const tx = db.transaction("questions", "readwrite");
+      tx.objectStore("questions").put(currentItem);
+      tx.oncomplete = () => {
+        alert(currentItem.isSolved ? "Çözüldü olarak işaretlendi!" : "Bekleyenlere alındı!");
+        closeViewer();
+        renderList();
+      };
+    }
+
+    function onSolutionPicked(input) {
+      const file = input.files && input.files[0];
+      if (!file || !currentItem || currentItem.isExam || !db) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        currentItem.solution = e.target.result;
+        currentItem.isSolved = true;
+        const tx = db.transaction("questions", "readwrite");
+        tx.objectStore("questions").put(currentItem);
+        tx.oncomplete = () => {
+          alert("Çözüm fotoğrafı kaydedildi!");
+          closeViewer();
+          renderList();
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function solveWithGemini() {
+      const key = localStorage.getItem("GEMINI_KEY");
+      if (!key) {
+        alert("Lütfen önce sağ üstteki '🔑 Gemini API' butonundan anahtarınızı kaydedin.");
+        openApiKeyModal();
+        return;
+      }
+      const btn = document.getElementById('btn-ai');
+      btn.innerText = "⏳ Çözülüyor...";
+      btn.disabled = true;
+
+      try {
+        const base64 = currentItem.image.split(',')[1];
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: "Sen bir öğretmensin. Soruyu adım adım, anlaşılır şekilde çöz ve sonucu en altta belirt." },
+                { inline_data: { mime_type: "image/jpeg", data: base64 } }
+              ]
+            }]
+          })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+
+        const sol = data.candidates[0].content.parts[0].text;
+        currentItem.aiSolution = sol;
+        const tx = db.transaction("questions", "readwrite");
+        tx.objectStore("questions").put(currentItem);
+        tx.oncomplete = () => {
+          document.getElementById('v-ai-box').innerText = "✨ Gemini Çözümü:\n" + sol;
+          document.getElementById('v-ai-box').style.display = 'block';
+          renderList();
+        };
+      } catch(err) {
+        alert("Hata: " + err.message);
+      } finally {
+        btn.innerText = "✨ Gemini ile Çöz";
+        btn.disabled = false;
+      }
+    }
+
+    function openApiKeyModal() {
+      document.getElementById('inp-api').value = localStorage.getItem("GEMINI_KEY") || '';
+      document.getElementById('modal-api').classList.add('active');
+    }
+    function saveApiKey() {
+      localStorage.setItem("GEMINI_KEY", document.getElementById('inp-api').value.trim());
+      closeModals();
+      alert("API Anahtarı kaydedildi!");
+    }
+
+    function shareWhatsapp() {
+      if (!currentItem) return;
+      const text = currentItem.isExam 
+        ? `${currentItem.title} sınavı` 
+        : `Merhaba ${currentItem.student}, sorunun çözümü hazır.`;
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+    }
+  </script>
+</body>
+</html>
